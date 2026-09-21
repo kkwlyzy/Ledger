@@ -1,0 +1,22 @@
+# ---- 数据：含个人记账记录，禁止提交 ----
+data/
+dist/data/
+
+# ---- 打包产物（exe 及中间文件）----
+dist/
+build/
+*.exe
+*.pkg
+*.pyz
+*.spec.bak
+
+# ---- Python 缓存 ----
+__pycache__/
+*.pyc
+*.pyo
+
+# ---- 本地工作目录 ----
+.workbuddy/
+
+# ---- 本地备份助手（含本机私有路径）----
+backup_dist_data.py
