@@ -12,7 +12,7 @@ import calendar
 from datetime import date, datetime, timedelta
 from typing import Dict, List, Tuple
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Qt, Signal, QFileSystemWatcher, QTimer
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -33,7 +33,7 @@ from models import Budget, Category, Transaction, TYPE_EXPENSE, TYPE_INCOME
 
 
 APP_TITLE = "记账本"
-APP_VERSION = "0.1.0"
+APP_VERSION = "1.2.0"
 
 
 class AppContext(QObject):
@@ -206,6 +206,7 @@ class MainWindow(QMainWindow):
         self.ctx.data_changed.connect(self._refresh_status)
         self.ctx.reload()
         self._refresh_status()
+        self._setup_auto_refresh()
 
     # ---- UI 构建 ----
     def _build_ui(self) -> None:
@@ -397,6 +398,39 @@ class MainWindow(QMainWindow):
         self.status_income.setText(f"本周期收入：¥{income:,.2f}")
         self.status_expense.setText(f"本周期支出：¥{expense:,.2f}")
         self.status_balance.setText(f"结余：¥{income - expense:,.2f}")
+
+    # ---- 自动刷新：监视外部数据文件变化 ----
+    def _setup_auto_refresh(self) -> None:
+        """监视 data 目录，外部(如 AI/CLI)写入后自动重载并刷新界面。
+
+        用 QFileSystemWatcher 监听 4 个 JSON 文件，变化后用 QTimer
+        防抖 300ms 再 reload，避免连续写入触发多次刷新。
+        """
+        import os as _os
+
+        data_dir = getattr(storage, "DATA_DIR", None)
+        if not data_dir or not _os.path.isdir(data_dir):
+            return
+
+        self._watcher = QFileSystemWatcher(self)
+        self._watcher.directoryChanged.connect(self._on_data_changed)
+        self._debounce = QTimer(self)
+        self._debounce.setSingleShot(True)
+        self._debounce.setInterval(300)
+        self._debounce.timeout.connect(self._do_reload)
+        # 监视目录（目录内容变化比单文件更可靠，覆盖新增/替换/删除）
+        self._watcher.addPath(data_dir)
+
+    def _on_data_changed(self, path: str) -> None:
+        # 目录里任何变化都触发防抖重载
+        self._debounce.start()
+
+    def _do_reload(self) -> None:
+        # 重新读盘并广播刷新；异常时静默，避免打断界面
+        try:
+            self.ctx.reload()
+        except Exception:
+            pass
 
     # ---- 关闭事件 ----
     def closeEvent(self, event) -> None:

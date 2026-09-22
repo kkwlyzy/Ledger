@@ -20,3 +20,9 @@ __pycache__/
 
 # ---- 本地备份助手（含本机私有路径）----
 backup_dist_data.py
+
+# ---- 运行时日志 ----
+*.log
+
+# ---- LLM 配置（含 API Key，禁止提交）----
+data/llm.json
